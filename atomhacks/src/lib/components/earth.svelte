@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+    import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
     import * as THREE_m from 'three';
     import { onMount } from 'svelte';
     import * as THREE from 'three/webgpu';
@@ -201,9 +201,9 @@
         // gui.add(roughnessLow, 'value', 0, 1, 0.001).name('roughnessLow');
         // gui.add(roughnessHigh, 'value', 0, 1, 0.001).name('roughnessHigh');
 
-        const loader = new OBJLoader();
-        loader.load('/cube.obj', (object) => {
-            const scaleFactor = 0.05;
+        const loader = new FBXLoader();
+        loader.load('/iss.fbx', (object) => {
+            const scaleFactor = 0.000012;
             object.scale.set(scaleFactor, scaleFactor, scaleFactor);
             issObject = object;
             scene.add(object);
@@ -214,7 +214,7 @@
 
     function onWindowResize(): void {
         camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix(); // Fixed typo from original: 'camra' → 'camera'
+        camera.updateProjectionMatrix(); 
 
         renderer.setSize(window.innerWidth, window.innerHeight);
     }
@@ -226,22 +226,24 @@
         controls.update();
         renderer.render(scene, camera);
 
-        // Project ISS world position → screen coords each frame
+        // Project ISS world position tp screen coords each frame
         if (issObject) {
             const worldPos = new THREE_m.Vector3();
             issObject.getWorldPosition(worldPos);
-            worldPos.project(camera); // now in NDC [-1, 1]
+            const direction = worldPos.clone().sub(camera.position).normalize();
+            const raycaster = new THREE_m.Raycaster(camera.position, direction);
+            const intersects = raycaster.intersectObject(globe);
 
-            const x = (worldPos.x *  0.5 + 0.5) * canvas.clientWidth;
+            // Occluded if the globe surface is hit before we reach the ISS!
+            const distToISS = camera.position.distanceTo(worldPos);
+            const occluded = intersects.length > 0 && intersects[0].distance < distToISS;
+
+            worldPos.project(camera);
+            const x = (worldPos.x * 0.5 + 0.5) * canvas.clientWidth;
             const y = (-worldPos.y * 0.5 + 0.5) * canvas.clientHeight;
 
-            issPosition = worldPos.z < 1 ? [x, y] : null;
-
-            if (issObject.frustumCulled && !overlayActive) {
-                overlayActive = true;
-            } else if (!issObject.frustumCulled && overlayActive) {
-                overlayActive = false;
-            }
+            issPosition = [x, y];
+            overlayActive = !occluded;
         }
     }
 

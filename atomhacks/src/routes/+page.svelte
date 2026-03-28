@@ -27,12 +27,18 @@
 <div class="page">
   <Earth {position} bind:issPosition bind:overlayActive />
   {#if issPosition && position}
-      <Overlay
-          active={overlayActive}
-          {issPosition}
-          {position}
-      />
+    <Overlay
+        active={overlayActive}
+        {issPosition}
+        {position}
+    />
+
+    {#if !overlayActive}
+      <div class="iss-pos" style="left: {issPosition[0]}px; top: {issPosition[1]}px;">
+        
+      </div>
     {/if}
+  {/if}
 </div>
 <style lang="scss">
   :global(:root) {
@@ -48,4 +54,38 @@
     position: relative;
     width: 100vw; height: 100vh;
   }
+
+  .iss-pos {
+    position: absolute;
+    pointer-events: none;
+    background-color: red;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+
+    &::before {
+      content: '';
+      position: absolute;
+      background-color: red;
+      width: 10px; height: 10px;
+      top: 0; left: 0;
+      border-radius: 50%;
+      z-index: 2;
+      opacity: 0.5;
+      transform-origin: center center;
+      animation: pulse infinite linear 1s;
+    } 
+  }
+
+  @keyframes pulse {
+    from {
+      opacity: 0.8;
+      scale: 1;
+    } to {
+      opacity: 0;
+      scale: 2;
+    }
+  }
+
+
 </style>        
