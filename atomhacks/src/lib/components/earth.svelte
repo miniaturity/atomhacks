@@ -203,7 +203,7 @@
 
         const loader = new FBXLoader();
         loader.load('/iss.fbx', (object) => {
-            const scaleFactor = 0.000012;
+            const scaleFactor = 0.000008;
             object.scale.set(scaleFactor, scaleFactor, scaleFactor);
             issObject = object;
             scene.add(object);
@@ -222,7 +222,7 @@
     async function animate(): Promise<void> {
         timer.update();
         const delta = timer.getDelta();
-        globe.rotation.y += delta * 0.025;
+        globe.rotation.y += delta * 0.005;
         controls.update();
         renderer.render(scene, camera);
 

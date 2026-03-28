@@ -13,3 +13,12 @@ export interface Position {
     "solar_lon": number,
     "units": string
 }
+
+export interface People {
+    people: Person[];
+}
+
+interface Person {
+    craft: string;
+    name: string;
+}
