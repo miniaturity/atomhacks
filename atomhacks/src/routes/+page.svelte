@@ -1,6 +1,9 @@
 <script lang="ts">
+    import Credits from "$lib/components/credits.svelte";
+    import Dialogue from "$lib/components/dialogue.svelte";
  import Earth from "$lib/components/earth.svelte";
     import Interface from "$lib/components/interface.svelte";
+    import Overhead from "$lib/components/overhead.svelte";
     import Overlay from "$lib/components/overlay.svelte";
     import type { People, Position } from "$lib/types/types";
     import { onMount } from "svelte";
@@ -10,9 +13,10 @@
     let issPosition = $state<[number, number] | null>(null);
     let overlayActive = $state<boolean>(false);
 
+
     async function fetchSat() {
         try {
-          const res = await fetch("https://api.wheretheiss.at/v1/satellites/25544");
+          const res = await fetch("/api/iss");
           if (res.ok) position = await res.json() as Position;
         } catch (e) {
           console.error("ISS fetch failed ", e);
@@ -54,6 +58,9 @@
       </div>
     {/if}
   {/if}
+  <Overhead />
+  <Credits />
+  <Dialogue />
 </div>
 <style lang="scss">
   :global(:root) {

@@ -16,6 +16,7 @@
 </div>
 
 <div class="people">
+    <header>[ISS Current Crew]</header>
     {#each people.people as person}
         {#if person.craft === "ISS"}
             <div class="dat">
@@ -23,7 +24,6 @@
             </div>
         {/if}
     {/each}
-    <header>[ISS Current Crew]</header>
 </div>
 
 <style lang="scss">

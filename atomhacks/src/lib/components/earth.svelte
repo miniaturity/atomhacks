@@ -180,6 +180,9 @@
         controls.enableDamping = true;
         controls.minDistance = 0.1;
         controls.maxDistance = 50;
+        if (issObject)
+            controls.target.copy(issObject?.position);
+        controls.update();
 
         // Debug GUI
         // const gui = inspector.createParameters('Parameters');
