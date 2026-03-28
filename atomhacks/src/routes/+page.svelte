@@ -5,6 +5,7 @@
     import Interface from "$lib/components/interface.svelte";
     import Overhead from "$lib/components/overhead.svelte";
     import Overlay from "$lib/components/overlay.svelte";
+    import Title from "$lib/components/title.svelte";
     import type { People, Position } from "$lib/types/types";
     import { onMount } from "svelte";
 
@@ -35,7 +36,7 @@
     onMount(() => {
         fetchSat();
         fetchCrew();
-        const interval = setInterval(fetchSat, 2500);
+        const interval = setInterval(fetchSat, 5000);
         return () => clearInterval(interval);
     });
 
@@ -61,6 +62,7 @@
   <Overhead />
   <Credits />
   <Dialogue />
+  <Title />
 </div>
 <style lang="scss">
   :global(:root) {

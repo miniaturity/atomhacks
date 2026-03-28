@@ -9,10 +9,11 @@
 </script>
 
 <div class="interface">
-    <header>[ISS Live Model]</header>
+    <header>[ISS Live Position]</header>
     <div class="lat dat">[latitude: {position.latitude}]</div>
     <div class="lon dat">[longitude: {position.longitude}]</div>
     <div class="alt dat">[altitude: {position.altitude} km]</div>
+    <div class="time dat">[timestamp: {position.timestamp}]</div>
 </div>
 
 <div class="people">

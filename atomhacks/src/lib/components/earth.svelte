@@ -21,14 +21,13 @@
         max
     } from 'three/tsl';
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-    // import { Inspector } from 'three/addons/inspector/Inspector.js';
 
     import earth_day from "$lib/assets/earth_day_4096.jpg";
     import earth_night from "$lib/assets/earth_night_4096.jpg";
     import clouds from "$lib/assets/earth_bump_roughness_clouds_4096.jpg";
     import type { Position } from '$lib/types/types';
 
-     let { 
+    let { 
         position = $bindable(), 
         issPosition = $bindable<[number, number] | null>(null), 
         overlayActive = $bindable<boolean>(false),
@@ -39,16 +38,77 @@
     } = $props();
 
     let issObject: THREE.Object3D | undefined;
+    // ── Ground track ──────────────────────────────────────────
+    let groundTrackMesh: THREE_m.Points | null = null;
+
+    // Converts lat/lon/alt to local sphere coords (NO globe rotation
+    // subtraction — this mesh is parented to globe, so it spins with it)
+    function latLonToLocal(lat: number, lon: number, alt: number): THREE_m.Vector3 {
+        const r = 1 * (1 + alt / 6371);
+        const latRad = lat * (Math.PI / 180);
+        const lonRad = lon * (Math.PI / 180);
+        return new THREE_m.Vector3(
+            r * Math.cos(latRad) * Math.sin(lonRad),
+            r * Math.sin(latRad),
+            r * Math.cos(latRad) * Math.cos(lonRad),
+        );
+    }
+
+    function buildGroundTrack(pts: { lat: number; lon: number; alt: number }[]) {
+        if (groundTrackMesh) {
+            globe.remove(groundTrackMesh);
+            groundTrackMesh.geometry.dispose();
+        }
+
+        const positions = new Float32Array(pts.length * 3);
+        const colors    = new Float32Array(pts.length * 3);
+
+        pts.forEach((p, i) => {
+            const v = latLonToLocal(p.lat, p.lon, p.alt);
+            positions[i * 3]     = v.x;
+            positions[i * 3 + 1] = v.y;
+            positions[i * 3 + 2] = v.z;
+
+            // Fade brightness from 1 (now) → 0.12 (furthest)
+            const b = 1 - (i / (pts.length - 1)) * 0.88;
+            colors[i * 3]     = b;
+            colors[i * 3 + 1] = 0;
+            colors[i * 3 + 2] = 0;
+        });
+
+        const geo = new THREE_m.BufferGeometry();
+        geo.setAttribute('position', new THREE_m.BufferAttribute(positions, 3));
+        geo.setAttribute('color',    new THREE_m.BufferAttribute(colors, 3));
+
+        const mat = new THREE_m.PointsMaterial({
+            size: 1,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.72,
+            sizeAttenuation: true,
+            depthWrite: false,
+        });
+
+        groundTrackMesh = new THREE_m.Points(geo, mat);
+        globe.add(groundTrackMesh); // parent to globe → auto-rotates with Earth
+    }
+
+    async function fetchTrack() {
+        try {
+            const res = await fetch('/api/track');
+            if (res.ok && globe) buildGroundTrack(await res.json());
+        } catch (e) {
+            console.error('Track fetch failed', e);
+        }
+    }
+    // ─────────────────────────────────────────────────────────
 
     function latLonAltToVector3(lat: number, lon: number, alt: number): THREE_m.Vector3 {
         const EARTH_RADIUS_KM = 6371;
-        const SCENE_RADIUS = 1; // your sphere's radius
+        const SCENE_RADIUS = 1;
         const r = SCENE_RADIUS * (1 + alt / EARTH_RADIUS_KM);
-
         const latRad = lat * (Math.PI / 180);
-        // Subtract globe.rotation.y to counteract the cosmetic spin
         const lonRad = lon * (Math.PI / 180) - globe.rotation.y;
-
         return new THREE_m.Vector3(
             r * Math.cos(latRad) * Math.sin(lonRad),
             r * Math.sin(latRad),
@@ -56,7 +116,6 @@
         );
     }
 
-    // React to position prop changes
     $effect(() => {
         if (position && issObject) {
             const pos = latLonAltToVector3(position.latitude, position.longitude, position.altitude);
@@ -64,16 +123,13 @@
         }
     });
 
-
     let canvas: HTMLCanvasElement;
-
     let camera: THREE.PerspectiveCamera;
     let scene: THREE.Scene;
     let renderer: THREE.WebGPURenderer;
     let controls: OrbitControls;
     let globe: THREE.Mesh;
     let timer: THREE.Timer;
-    
 
     function init(): void {
         timer = new THREE.Timer();
@@ -252,9 +308,14 @@
 
     onMount(() => {
         init();
+        fetchTrack();  // ← add this
         window.addEventListener('resize', onWindowResize);
 
+        // Refresh track every 5 minutes (300 N2YO transactions per refresh)
+        const trackInterval = setInterval(fetchTrack, 5 * 60 * 1000);  // ← add this
+
         return () => {
+            clearInterval(trackInterval);  // ← add this
             window.removeEventListener('resize', onWindowResize);
             renderer?.setAnimationLoop(null);
             renderer?.dispose();

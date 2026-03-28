@@ -11,7 +11,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	const ALT = url.searchParams.get('alt') ?? "0";
 
     let DAYS = "1";
-    let MIN_VISIBILITY = "1";
+    let MIN_VISIBILITY = "10";
     const furl =
         `https://api.n2yo.com/rest/v1/satellite/visualpasses/` +
         `/${ISS_NORAD_ID}/${LAT}/${LONG}/${ALT}/${DAYS}/${MIN_VISIBILITY}/&apiKey=${N2YO_API_KEY}`;
