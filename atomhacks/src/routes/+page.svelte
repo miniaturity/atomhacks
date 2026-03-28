@@ -1,48 +1,38 @@
 <script lang="ts">
-    import Earth from "$lib/components/earth.svelte";
-  import type { Position } from "$lib/types/types";
-  import { onMount } from "svelte";
+ import Earth from "$lib/components/earth.svelte";
+    import Overlay from "$lib/components/overlay.svelte";
+    import type { Position } from "$lib/types/types";
+    import { onMount } from "svelte";
 
-  const RATE_LIMIT_MS = 1000; 
+    let position = $state<Position | undefined>();
+    let issPosition = $state<[number, number] | null>(null);
+    let overlayActive = $state<boolean>(false);
 
-  let lastReqTimestamp = $state<number>(Date.now());
-  let capturedPosition = $state<Position>();
-  let position = $state<Position>();
-
-  async function update() {
-    if (Date.now() - lastReqTimestamp <= RATE_LIMIT_MS) return;
-    const res = await fetch("https://api.wheretheiss.at/v1/satellites/25544");
-    if (!res.ok) {
-      throw new Error("Request for update failed.");
-    } else {
-      const data = await res.json() as Position;
-      capturedPosition = data;
-      lastReqTimestamp = Date.now();
+    async function fetchISS() {
+        try {
+            const res = await fetch("https://api.wheretheiss.at/v1/satellites/25544");
+            if (res.ok) position = await res.json() as Position;
+        } catch (e) {
+            console.error("ISS fetch failed", e);
+        }
     }
-  }
 
-  async function requestCapture(timestamp: number) {
-    if (Date.now() - lastReqTimestamp <= RATE_LIMIT_MS) return;
-    const res = await fetch(`https://api.wheretheiss.at/v1/satellites/25544/positions?timestamps=${timestamp}&units=kilometers`);
-  
-    if (!res.ok) {
-      throw new Error("Request for capture failed. Timestamp: " + timestamp);
-    } else {
-      const data = await res.json() as Position;
-      capturedPosition = data;
-      lastReqTimestamp = Date.now();
-    }
-  }
-  
-
-  onMount(() => {
-
-  });
-
+    onMount(() => {
+        fetchISS();
+        const interval = setInterval(fetchISS, 2500);
+        return () => clearInterval(interval);
+    });
 
 </script>
 <div class="page">
-  <Earth />
+  <Earth {position} bind:issPosition bind:overlayActive />
+  {#if issPosition && position}
+      <Overlay
+          active={overlayActive}
+          {issPosition}
+          {position}
+      />
+    {/if}
 </div>
 <style lang="scss">
   :global(:root) {
@@ -55,7 +45,7 @@
     background: var(--bg);
   }
   .page {
-
+    position: relative;
     width: 100vw; height: 100vh;
   }
 </style>        

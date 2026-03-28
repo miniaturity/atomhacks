@@ -25,6 +25,44 @@
 
     import earth_day from "$lib/assets/earth_day_4096.jpg";
     import earth_night from "$lib/assets/earth_night_4096.jpg";
+    import clouds from "$lib/assets/earth_bump_roughness_clouds_4096.jpg";
+    import type { Position } from '$lib/types/types';
+
+     let { 
+        position = $bindable(), 
+        issPosition = $bindable<[number, number] | null>(null), 
+        overlayActive = $bindable<boolean>(false),
+    }: { 
+        position?: Position,
+        issPosition?: [number, number] | null;
+        overlayActive?: boolean;
+    } = $props();
+
+    let issObject: THREE.Object3D | undefined;
+
+    function latLonAltToVector3(lat: number, lon: number, alt: number): THREE_m.Vector3 {
+        const EARTH_RADIUS_KM = 6371;
+        const SCENE_RADIUS = 1; // your sphere's radius
+        const r = SCENE_RADIUS * (1 + alt / EARTH_RADIUS_KM);
+
+        const latRad = lat * (Math.PI / 180);
+        // Subtract globe.rotation.y to counteract the cosmetic spin
+        const lonRad = lon * (Math.PI / 180) - globe.rotation.y;
+
+        return new THREE_m.Vector3(
+            r * Math.cos(latRad) * Math.sin(lonRad),
+            r * Math.sin(latRad),
+            r * Math.cos(latRad) * Math.cos(lonRad)
+        );
+    }
+
+    // React to position prop changes
+    $effect(() => {
+        if (position && issObject) {
+            const pos = latLonAltToVector3(position.latitude, position.longitude, position.altitude);
+            issObject.position.copy(pos);
+        }
+    });
 
 
     let canvas: HTMLCanvasElement;
@@ -35,7 +73,6 @@
     let controls: OrbitControls;
     let globe: THREE.Mesh;
     let timer: THREE.Timer;
-
     
 
     function init(): void {
@@ -70,7 +107,7 @@
         nightTexture.anisotropy = 8;
 
         const bumpRoughnessCloudsTexture = textureLoader.load(
-            './textures/planets/earth_bump_roughness_clouds_4096.jpg'
+            clouds
         );
         bumpRoughnessCloudsTexture.anisotropy = 8;
 
@@ -165,16 +202,14 @@
         // gui.add(roughnessHigh, 'value', 0, 1, 0.001).name('roughnessHigh');
 
         const loader = new OBJLoader();
-        loader.load(
-            '/cube.obj',
-            function (object) {
-                const scaleFactor = 0.05;
-                object.scale.set(scaleFactor, scaleFactor, scaleFactor);
-                globe.add(object);
-                object.position.set(0, 0, 2);
-                console.log("ISS Loaded!");
-            }
-        );
+        loader.load('/cube.obj', (object) => {
+            const scaleFactor = 0.05;
+            object.scale.set(scaleFactor, scaleFactor, scaleFactor);
+            issObject = object;
+            scene.add(object);
+            console.log("ISS Loaded!");
+        });
+
     }
 
     function onWindowResize(): void {
@@ -186,13 +221,28 @@
 
     async function animate(): Promise<void> {
         timer.update();
-
         const delta = timer.getDelta();
         globe.rotation.y += delta * 0.025;
-
         controls.update();
-
         renderer.render(scene, camera);
+
+        // Project ISS world position → screen coords each frame
+        if (issObject) {
+            const worldPos = new THREE_m.Vector3();
+            issObject.getWorldPosition(worldPos);
+            worldPos.project(camera); // now in NDC [-1, 1]
+
+            const x = (worldPos.x *  0.5 + 0.5) * canvas.clientWidth;
+            const y = (-worldPos.y * 0.5 + 0.5) * canvas.clientHeight;
+
+            issPosition = worldPos.z < 1 ? [x, y] : null;
+
+            if (issObject.frustumCulled && !overlayActive) {
+                overlayActive = true;
+            } else if (!issObject.frustumCulled && overlayActive) {
+                overlayActive = false;
+            }
+        }
     }
 
     onMount(() => {
@@ -209,7 +259,7 @@
     });
 </script>
 
-<canvas bind:this={canvas}></canvas>    
+<canvas bind:this={canvas}></canvas>
 
 <style>
     canvas {
